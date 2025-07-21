@@ -1,4 +1,5 @@
-name : Deploy Frontend
+name: Deploy Frontend
+
 on:
   push:
     branches:
@@ -7,23 +8,37 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-      - run: docker build -t cygnetops/react-test -f Dockerfile.dev .
-      - run: docker run -e CI=true cygnetops/react-test npm test
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Docker login
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: docker build -t cygnetops/react-test -f Dockerfile.dev .
+
+      - name: Run tests
+        run: docker run -e CI=true cygnetops/react-test npm test
+
+      - name: Set unique version label
+        run: echo "VERSION_LABEL=deploy-${GITHUB_RUN_ID}-$(date +%s)" >> $GITHUB_ENV
+
+      - name: Debug version label
+        run: echo "Using version label: $VERSION_LABEL"
 
       - name: Generate deployment package
         run: zip -r deploy.zip . -x '*.git*'
 
-      - name: Deploy to EB
+      - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v18
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
           aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
-          application_name: Frontend
-          environment_name: Frontend-env
+          application_name: docker-gh
+          environment_name: Dockergh-env
           existing_bucket_name: elasticbeanstalk-us-east-1-227113222475
           region: us-east-1
-          version_label: ${{ github.sha }}
+          version_label: ${{ env.VERSION_LABEL }}
           deployment_package: deploy.zip
