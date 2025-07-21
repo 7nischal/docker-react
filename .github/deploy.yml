@@ -8,25 +8,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Docker login
+      - name: Log in to Docker
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker image
         run: docker build -t cygnetops/react-test -f Dockerfile.dev .
 
-      - name: Run tests
+      - name: Run Tests
         run: docker run -e CI=true cygnetops/react-test npm test
-
-      - name: Set unique version label
-        run: echo "VERSION_LABEL=deploy-${GITHUB_RUN_ID}-$(date +%s)" >> $GITHUB_ENV
-
-      - name: Debug version label
-        run: echo "Using version label: $VERSION_LABEL"
+        # ⚠️ Ensure your test files import `act` from 'react' instead of 'react-dom/test-utils'
 
       - name: Generate deployment package
         run: zip -r deploy.zip . -x '*.git*'
@@ -40,5 +33,5 @@ jobs:
           environment_name: Dockergh-env
           existing_bucket_name: elasticbeanstalk-us-east-1-227113222475
           region: us-east-1
-          version_label: ${{ env.VERSION_LABEL }}
+          version_label: ${{ github.sha }}-${{ github.run_id }}  # ← ensures unique version label
           deployment_package: deploy.zip
